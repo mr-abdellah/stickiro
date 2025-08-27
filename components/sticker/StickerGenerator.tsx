@@ -9,6 +9,12 @@ import { ExportManager } from "./ExportManager";
 import { DimensionsControl } from "./DimensionsControl";
 import { NumberRangeGenerator } from "./NumberRangeGenerator";
 import {
+  PDFConfig,
+  DEFAULT_PDF_CONFIG,
+  PDFConfiguration,
+} from "./PDFConfigControl";
+import { PDFPreview } from "./PDFPreview";
+import {
   StickerData,
   StickerDimensions,
   DEFAULT_DIMENSIONS,
@@ -18,16 +24,19 @@ export const StickerGenerator = () => {
   const [currentSticker, setCurrentSticker] = useState<StickerData>({
     id: "1",
     name: "Maghreb Distrib",
-    phone: "+213 5 59 42 44 56",
-    email: "contact@maghrebdistrib.com",
-    website: "https://maghrebdistrib.com",
-    qrData: "https://maghrebdistrib.com",
+    phone: "05 59 42 44 56",
+    email: "commercialmaghrebdistrib@gmail.com",
+    website: "",
+    qrData: "",
   });
 
   const [dimensions, setDimensions] =
     useState<StickerDimensions>(DEFAULT_DIMENSIONS);
+  const [pdfConfig, setPdfConfig] =
+    useState<PDFConfiguration>(DEFAULT_PDF_CONFIG);
   const [bulkData, setBulkData] = useState<StickerData[]>([]);
   const [numberedStickers, setNumberedStickers] = useState<StickerData[]>([]);
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
 
   const handleDataImport = (data: StickerData[]) => {
     setBulkData(data);
@@ -37,6 +46,10 @@ export const StickerGenerator = () => {
   const handleNumberedGeneration = (stickers: StickerData[]) => {
     setNumberedStickers(stickers);
     setBulkData([]); // Clear bulk import when using numbered generation
+  };
+
+  const handlePDFPreview = () => {
+    setShowPDFPreview(true);
   };
 
   // Priority: numbered stickers > bulk CSV > single sticker
@@ -81,8 +94,8 @@ export const StickerGenerator = () => {
           Professional Sticker Generator
         </h1>
         <p className="text-muted-foreground">
-          Create custom stickers with full dimension control, numbering, and QR
-          codes
+          Create custom stickers with full dimension control, numbering, and
+          advanced PDF export
         </p>
 
         {/* Active Data Status */}
@@ -96,11 +109,12 @@ export const StickerGenerator = () => {
       </div>
 
       <Tabs defaultValue="design" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="design">Design</TabsTrigger>
           <TabsTrigger value="dimensions">Dimensions</TabsTrigger>
           <TabsTrigger value="numbers">Numbers</TabsTrigger>
           <TabsTrigger value="bulk">Bulk CSV</TabsTrigger>
+          <TabsTrigger value="pdf">PDF Config</TabsTrigger>
           <TabsTrigger value="export">Export</TabsTrigger>
         </TabsList>
 
@@ -120,8 +134,8 @@ export const StickerGenerator = () => {
                 </p>
                 <p>
                   <strong>Print Size:</strong>{" "}
-                  {(dimensions.sticker.width / 2.54).toFixed(2)}&quot; ×{" "}
-                  {(dimensions.sticker.height / 2.54).toFixed(2)}&quot;
+                  {(dimensions.sticker.width / 2.54).toFixed(2)}" ×{" "}
+                  {(dimensions.sticker.height / 2.54).toFixed(2)}"
                 </p>
                 <p>
                   <strong>Resolution:</strong> 300 DPI
@@ -203,7 +217,7 @@ export const StickerGenerator = () => {
                           className="mx-auto mb-2"
                         />
                         <p className="text-xs text-muted-foreground">
-                          #{sticker.formattedNumber}
+                          QR: {sticker.qrData}
                         </p>
                       </div>
                     ))}
@@ -282,9 +296,30 @@ export const StickerGenerator = () => {
           </div>
         </TabsContent>
 
+        <TabsContent value="pdf" className="space-y-6">
+          <div className="grid lg:grid-cols-2 gap-6">
+            <PDFConfig
+              config={pdfConfig}
+              onChange={setPdfConfig}
+              stickerDimensions={dimensions}
+              onPreview={handlePDFPreview}
+            />
+
+            <PDFPreview
+              config={pdfConfig}
+              stickerDimensions={dimensions}
+              sampleSticker={dataForExport[0] || currentSticker}
+            />
+          </div>
+        </TabsContent>
+
         <TabsContent value="export" className="space-y-6">
           <div className="grid lg:grid-cols-2 gap-6">
-            <ExportManager data={dataForExport} dimensions={dimensions} />
+            <ExportManager
+              data={dataForExport}
+              dimensions={dimensions}
+              pdfConfig={pdfConfig}
+            />
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Export Preview</h3>
               {dataForExport.length > 0 && (
@@ -311,8 +346,9 @@ export const StickerGenerator = () => {
                           {dataForExport.length.toLocaleString()}
                         </p>
                         <p>
-                          <strong>Size:</strong> {dimensions.sticker.width}×
-                          {dimensions.sticker.height}cm
+                          <strong>Sticker Size:</strong>{" "}
+                          {dimensions.sticker.width}×{dimensions.sticker.height}
+                          cm
                         </p>
                         <p>
                           <strong>Resolution:</strong> 300 DPI
@@ -320,15 +356,38 @@ export const StickerGenerator = () => {
                       </div>
                       <div>
                         <p>
-                          <strong>Print Size:</strong>{" "}
-                          {(dimensions.sticker.width / 2.54).toFixed(2)}&quot;×
-                          {(dimensions.sticker.height / 2.54).toFixed(2)}&quot;
+                          <strong>PDF Page:</strong> {pdfConfig.customWidth}×
+                          {pdfConfig.customHeight}mm
                         </p>
                         <p>
-                          <strong>PNG:</strong> Individual files
+                          <strong>PDF DPI:</strong> {pdfConfig.dpi}
                         </p>
                         <p>
-                          <strong>PDF:</strong> Multi-page layout
+                          <strong>Per Page:</strong>{" "}
+                          {Math.max(
+                            1,
+                            Math.floor(
+                              (pdfConfig.customWidth -
+                                pdfConfig.marginLeft -
+                                pdfConfig.marginRight +
+                                pdfConfig.paddingHorizontal) /
+                                (dimensions.sticker.width *
+                                  10 *
+                                  pdfConfig.stickerScale +
+                                  pdfConfig.paddingHorizontal)
+                            ) *
+                              Math.floor(
+                                (pdfConfig.customHeight -
+                                  pdfConfig.marginTop -
+                                  pdfConfig.marginBottom +
+                                  pdfConfig.paddingVertical) /
+                                  (dimensions.sticker.height *
+                                    10 *
+                                    pdfConfig.stickerScale +
+                                    pdfConfig.paddingVertical)
+                              )
+                          )}{" "}
+                          stickers
                         </p>
                       </div>
                     </div>
@@ -336,12 +395,9 @@ export const StickerGenerator = () => {
                     {numberedStickers.length > 0 && (
                       <div className="pt-2 border-t">
                         <p className="text-xs text-green-600">
-                          <strong>Number Range:</strong> #
-                          {numberedStickers[0].formattedNumber} to #
-                          {
-                            numberedStickers[numberedStickers.length - 1]
-                              .formattedNumber
-                          }
+                          <strong>Number Range:</strong>{" "}
+                          {numberedStickers[0].qrData} to{" "}
+                          {numberedStickers[numberedStickers.length - 1].qrData}
                         </p>
                       </div>
                     )}

@@ -19,13 +19,19 @@ import {
   convertToPixels,
   StickerDimensions,
 } from "@/lib/sticker-utils";
+import { PDFConfiguration } from "./PDFConfigControl";
 
 interface ExportManagerProps {
   data: StickerData[];
   dimensions: StickerDimensions;
+  pdfConfig: PDFConfiguration;
 }
 
-export const ExportManager = ({ data, dimensions }: ExportManagerProps) => {
+export const ExportManager = ({
+  data,
+  dimensions,
+  pdfConfig,
+}: ExportManagerProps) => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [batchSize, setBatchSize] = useState(100);
@@ -316,51 +322,49 @@ export const ExportManager = ({ data, dimensions }: ExportManagerProps) => {
 
   const exportAsPDF = async () => {
     const jsPDF = await import("jspdf");
-    const pdf = new jsPDF.jsPDF();
+    const pdf = new jsPDF.jsPDF({
+      orientation: pdfConfig.orientation === "landscape" ? "l" : "p",
+      unit: "mm",
+      format:
+        pdfConfig.pageFormat === "Custom"
+          ? [pdfConfig.customWidth, pdfConfig.customHeight]
+          : pdfConfig.pageFormat.toLowerCase(),
+      compress: pdfConfig.quality !== "high",
+    });
 
     setIsExporting(true);
     setExportProgress(0);
     cancelExport.current = false;
 
-    // Calculate how many stickers fit per page based on dimensions
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    // Use PDF configuration
+    const pageWidth = pdfConfig.customWidth;
+    const pageHeight = pdfConfig.customHeight;
 
-    // Convert sticker dimensions to PDF units (mm)
-    const stickerWidthMM = dimensions.sticker.width * 10; // cm to mm
-    const stickerHeightMM = dimensions.sticker.height * 10; // cm to mm
+    const availableWidth =
+      pageWidth - pdfConfig.marginLeft - pdfConfig.marginRight;
+    const availableHeight =
+      pageHeight - pdfConfig.marginTop - pdfConfig.marginBottom;
 
-    // Calculate grid based on sticker size
-    const marginsX = 20; // 2cm margins
-    const marginsY = 20; // 2cm margins
-    const spacing = 10; // 1cm spacing between stickers
+    const stickerWidthMM =
+      dimensions.sticker.width * 10 * pdfConfig.stickerScale;
+    const stickerHeightMM =
+      dimensions.sticker.height * 10 * pdfConfig.stickerScale;
 
-    const availableWidth = pageWidth - 2 * marginsX;
-    const availableHeight = pageHeight - 2 * marginsY;
-
-    const stickersPerRow = Math.floor(
-      (availableWidth + spacing) / (stickerWidthMM + spacing)
+    const stickersPerRow = Math.max(
+      1,
+      Math.floor(
+        (availableWidth + pdfConfig.paddingHorizontal) /
+          (stickerWidthMM + pdfConfig.paddingHorizontal)
+      )
     );
-    const stickersPerCol = Math.floor(
-      (availableHeight + spacing) / (stickerHeightMM + spacing)
+    const stickersPerCol = Math.max(
+      1,
+      Math.floor(
+        (availableHeight + pdfConfig.paddingVertical) /
+          (stickerHeightMM + pdfConfig.paddingVertical)
+      )
     );
-    const stickersPerPage = Math.max(1, stickersPerRow * stickersPerCol);
-
-    // If stickers are too big, adjust size to fit at least one per page
-    let finalStickerWidth = stickerWidthMM;
-    let finalStickerHeight = stickerHeightMM;
-
-    if (
-      finalStickerWidth > availableWidth ||
-      finalStickerHeight > availableHeight
-    ) {
-      const scale = Math.min(
-        availableWidth / stickerWidthMM,
-        availableHeight / stickerHeightMM
-      );
-      finalStickerWidth = stickerWidthMM * scale;
-      finalStickerHeight = stickerHeightMM * scale;
-    }
+    const stickersPerPage = stickersPerRow * stickersPerCol;
 
     for (let i = 0; i < data.length; i++) {
       if (cancelExport.current) break;
@@ -376,8 +380,12 @@ export const ExportManager = ({ data, dimensions }: ExportManagerProps) => {
       const row = Math.floor(pageIndex / stickersPerRow);
       const col = pageIndex % stickersPerRow;
 
-      const x = marginsX + col * (finalStickerWidth + spacing);
-      const y = marginsY + row * (finalStickerHeight + spacing);
+      const x =
+        pdfConfig.marginLeft +
+        col * (stickerWidthMM + pdfConfig.paddingHorizontal);
+      const y =
+        pdfConfig.marginTop +
+        row * (stickerHeightMM + pdfConfig.paddingVertical);
 
       const imageDataUrl = await generateStickerImage(data[i]);
       pdf.addImage(
@@ -385,21 +393,22 @@ export const ExportManager = ({ data, dimensions }: ExportManagerProps) => {
         "PNG",
         x,
         y,
-        finalStickerWidth,
-        finalStickerHeight
+        stickerWidthMM,
+        stickerHeightMM,
+        undefined,
+        pdfConfig.quality === "high" ? "NONE" : "MEDIUM"
       );
     }
 
     if (!cancelExport.current) {
-      // Add metadata
       pdf.setProperties({
-        title: `Stickers Batch - ${dimensions.sticker.width}x${dimensions.sticker.height}cm`,
-        subject: `${data.length} stickers exported`,
+        title: `Stickers - ${dimensions.sticker.width}×${dimensions.sticker.height}cm`,
+        subject: `${data.length} stickers - ${pdfConfig.dpi}DPI`,
         creator: "Sticker Generator Pro",
       });
 
       pdf.save(
-        `stickers-batch-${dimensions.sticker.width}x${dimensions.sticker.height}cm-${data.length}items.pdf`
+        `stickers-${pdfConfig.customWidth}x${pdfConfig.customHeight}mm-${data.length}items-${pdfConfig.dpi}dpi.pdf`
       );
       setExportStatus(`✅ PDF export completed!`);
     }
