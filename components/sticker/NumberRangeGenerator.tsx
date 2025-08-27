@@ -1,118 +1,88 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Hash, Settings, Zap, AlertTriangle } from "lucide-react";
+import { Hash, Settings, AlertTriangle } from "lucide-react";
 import { StickerData } from "@/lib/sticker-utils";
+
+interface NumberRangeConfig {
+  startNumber: number;
+  endNumber: number;
+  prefix: string;
+  suffix: string;
+  paddingLength: number;
+  includeInQR: boolean;
+  includeInName: boolean;
+  qrNumberOnly: boolean;
+}
 
 interface NumberRangeGeneratorProps {
   onGenerate: (stickers: StickerData[]) => void;
   baseData: StickerData;
+  config: NumberRangeConfig;
+  onConfigChange: (config: Partial<NumberRangeConfig>) => void;
 }
 
 export const NumberRangeGenerator = ({
   onGenerate,
   baseData,
+  config,
+  onConfigChange,
 }: NumberRangeGeneratorProps) => {
-  const [startNumber, setStartNumber] = useState(10000);
-  const [endNumber, setEndNumber] = useState(14000);
-  const [prefix, setPrefix] = useState("");
-  const [suffix, setSuffix] = useState("");
-  const [includeInQR, setIncludeInQR] = useState(true);
-  const [includeInName, setIncludeInName] = useState(false);
-  const [qrNumberOnly, setQrNumberOnly] = useState(true); // NEW: QR code uses number only
-  const [paddingLength, setPaddingLength] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const getTotalCount = () =>
+    Math.max(0, config.endNumber - config.startNumber + 1);
+  const isValidRange = () =>
+    config.startNumber <= config.endNumber && config.startNumber >= 0;
 
-  const getTotalCount = () => Math.max(0, endNumber - startNumber + 1);
-  const isValidRange = () => startNumber <= endNumber && startNumber >= 0;
+  const handleConfigChange = <K extends keyof NumberRangeConfig>(
+    field: K,
+    value: NumberRangeConfig[K]
+  ) => {
+    onConfigChange({ [field]: value });
+  };
 
   const formatNumber = (num: number): string => {
     let formatted = num.toString();
-    if (paddingLength > 0) {
-      formatted = formatted.padStart(paddingLength, "0");
+    if (config.paddingLength > 0) {
+      formatted = formatted.padStart(config.paddingLength, "0");
     }
-    return `${prefix}${formatted}${suffix}`;
+    return `${config.prefix}${formatted}${config.suffix}`;
   };
 
-  const generateStickers = async () => {
-    if (!isValidRange()) return;
-
-    setIsGenerating(true);
-
-    const stickers: StickerData[] = [];
-
-    for (let i = startNumber; i <= endNumber; i++) {
-      const formattedNumber = formatNumber(i);
-
-      // QR Code Logic: Use number only if qrNumberOnly is true, otherwise use original qrData with number
-      let qrCodeValue = "";
-      if (qrNumberOnly) {
-        qrCodeValue = i.toString(); // Just the number
-      } else if (includeInQR && (baseData.qrData || baseData.website)) {
-        qrCodeValue = `${
-          baseData.qrData || baseData.website
-        }?id=${formattedNumber}`;
-      } else {
-        qrCodeValue = baseData.qrData || baseData.website || i.toString();
-      }
-
-      const sticker: StickerData = {
-        ...baseData,
-        id: `sticker-${i}`,
-        number: i,
-        formattedNumber,
-        name: includeInName
-          ? `${baseData.name} #${formattedNumber}`
-          : baseData.name,
-        qrData: qrCodeValue,
-      };
-
-      stickers.push(sticker);
-    }
-
-    // Small delay to show loading state
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    onGenerate(stickers);
-    setIsGenerating(false);
-  };
-
-  const previewNumbers = () => {
+  const previewNumbers = (): string[] => {
     if (!isValidRange()) return [];
     const examples = [];
     const total = getTotalCount();
 
     if (total <= 5) {
-      for (let i = startNumber; i <= endNumber; i++) {
+      for (let i = config.startNumber; i <= config.endNumber; i++) {
         examples.push(formatNumber(i));
       }
     } else {
-      examples.push(formatNumber(startNumber));
-      examples.push(formatNumber(startNumber + 1));
+      examples.push(formatNumber(config.startNumber));
+      examples.push(formatNumber(config.startNumber + 1));
       examples.push("...");
-      examples.push(formatNumber(endNumber - 1));
-      examples.push(formatNumber(endNumber));
+      examples.push(formatNumber(config.endNumber - 1));
+      examples.push(formatNumber(config.endNumber));
     }
 
     return examples;
   };
 
-  const getQrPreview = () => {
-    if (qrNumberOnly) {
-      return startNumber.toString();
+  const getQrPreview = (): string => {
+    if (config.qrNumberOnly) {
+      return config.startNumber.toString();
     }
-    if (includeInQR && (baseData.qrData || baseData.website)) {
+    if (config.includeInQR && (baseData.qrData || baseData.website)) {
       return `${baseData.qrData || baseData.website}?id=${formatNumber(
-        startNumber
+        config.startNumber
       )}`;
     }
-    return baseData.qrData || baseData.website || startNumber.toString();
+    return baseData.qrData || baseData.website || config.startNumber.toString();
   };
 
   return (
@@ -120,7 +90,7 @@ export const NumberRangeGenerator = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Hash className="h-5 w-5" />
-          Number Range Generator
+          Auto Number Range Generator
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -137,8 +107,13 @@ export const NumberRangeGenerator = ({
               <Input
                 id="start-number"
                 type="number"
-                value={startNumber}
-                onChange={(e) => setStartNumber(parseInt(e.target.value) || 0)}
+                value={config.startNumber}
+                onChange={(e) =>
+                  handleConfigChange(
+                    "startNumber",
+                    parseInt(e.target.value) || 0
+                  )
+                }
                 className="h-9"
                 min="0"
               />
@@ -150,8 +125,10 @@ export const NumberRangeGenerator = ({
               <Input
                 id="end-number"
                 type="number"
-                value={endNumber}
-                onChange={(e) => setEndNumber(parseInt(e.target.value) || 0)}
+                value={config.endNumber}
+                onChange={(e) =>
+                  handleConfigChange("endNumber", parseInt(e.target.value) || 0)
+                }
                 className="h-9"
                 min="0"
               />
@@ -168,7 +145,7 @@ export const NumberRangeGenerator = ({
           {isValidRange() && (
             <div className="bg-muted p-3 rounded-md">
               <p className="text-sm font-medium">
-                Total stickers to generate:{" "}
+                Total stickers auto-generating:{" "}
                 <Badge variant="secondary">
                   {getTotalCount().toLocaleString()}
                 </Badge>
@@ -191,8 +168,8 @@ export const NumberRangeGenerator = ({
               </Label>
               <Input
                 id="prefix"
-                value={prefix}
-                onChange={(e) => setPrefix(e.target.value)}
+                value={config.prefix}
+                onChange={(e) => handleConfigChange("prefix", e.target.value)}
                 placeholder="e.g., ID-"
                 className="h-8"
               />
@@ -204,9 +181,12 @@ export const NumberRangeGenerator = ({
               <Input
                 id="padding"
                 type="number"
-                value={paddingLength}
+                value={config.paddingLength}
                 onChange={(e) =>
-                  setPaddingLength(parseInt(e.target.value) || 0)
+                  handleConfigChange(
+                    "paddingLength",
+                    parseInt(e.target.value) || 0
+                  )
                 }
                 placeholder="0"
                 min="0"
@@ -220,8 +200,8 @@ export const NumberRangeGenerator = ({
               </Label>
               <Input
                 id="suffix"
-                value={suffix}
-                onChange={(e) => setSuffix(e.target.value)}
+                value={config.suffix}
+                onChange={(e) => handleConfigChange("suffix", e.target.value)}
                 placeholder="e.g., -DZ"
                 className="h-8"
               />
@@ -244,26 +224,28 @@ export const NumberRangeGenerator = ({
                 </p>
               </div>
               <Switch
-                checked={qrNumberOnly}
-                onCheckedChange={setQrNumberOnly}
+                checked={config.qrNumberOnly}
+                onCheckedChange={(value) =>
+                  handleConfigChange("qrNumberOnly", value)
+                }
               />
             </div>
 
-            {!qrNumberOnly && (
-              <>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-sm">Include in QR URL</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Add number to QR code URL as parameter
-                    </p>
-                  </div>
-                  <Switch
-                    checked={includeInQR}
-                    onCheckedChange={setIncludeInQR}
-                  />
+            {!config.qrNumberOnly && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm">Include in QR URL</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Add number to QR code URL as parameter
+                  </p>
                 </div>
-              </>
+                <Switch
+                  checked={config.includeInQR}
+                  onCheckedChange={(value) =>
+                    handleConfigChange("includeInQR", value)
+                  }
+                />
+              </div>
             )}
 
             <div className="flex items-center justify-between">
@@ -274,8 +256,10 @@ export const NumberRangeGenerator = ({
                 </p>
               </div>
               <Switch
-                checked={includeInName}
-                onCheckedChange={setIncludeInName}
+                checked={config.includeInName}
+                onCheckedChange={(value) =>
+                  handleConfigChange("includeInName", value)
+                }
               />
             </div>
           </div>
@@ -285,7 +269,7 @@ export const NumberRangeGenerator = ({
         {isValidRange() && (
           <div className="space-y-3">
             <Label className="text-sm font-semibold text-purple-600">
-              Preview
+              Live Preview
             </Label>
             <div className="bg-muted p-3 rounded-md">
               <p className="text-xs text-muted-foreground mb-2">
@@ -318,80 +302,79 @@ export const NumberRangeGenerator = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setStartNumber(1);
-                setEndNumber(1000);
-                setPrefix("");
-                setSuffix("");
-                setPaddingLength(4);
-                setQrNumberOnly(true);
-              }}
+              onClick={() =>
+                onConfigChange({
+                  startNumber: 1,
+                  endNumber: 1000,
+                  prefix: "",
+                  suffix: "",
+                  paddingLength: 4,
+                  qrNumberOnly: true,
+                })
+              }
             >
               1K Numbers Only
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setStartNumber(10000);
-                setEndNumber(14000);
-                setPrefix("");
-                setSuffix("");
-                setPaddingLength(0);
-                setQrNumberOnly(true);
-              }}
+              onClick={() =>
+                onConfigChange({
+                  startNumber: 10000,
+                  endNumber: 14000,
+                  prefix: "",
+                  suffix: "",
+                  paddingLength: 0,
+                  qrNumberOnly: true,
+                })
+              }
             >
               10K-14K Numbers
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setStartNumber(1);
-                setEndNumber(100);
-                setPrefix("ID-");
-                setSuffix("");
-                setPaddingLength(3);
-                setQrNumberOnly(false);
-              }}
+              onClick={() =>
+                onConfigChange({
+                  startNumber: 1,
+                  endNumber: 100,
+                  prefix: "ID-",
+                  suffix: "",
+                  paddingLength: 3,
+                  qrNumberOnly: false,
+                })
+              }
             >
               100 with URLs
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setStartNumber(50000);
-                setEndNumber(99999);
-                setPrefix("");
-                setSuffix("");
-                setPaddingLength(0);
-                setQrNumberOnly(true);
-              }}
+              onClick={() =>
+                onConfigChange({
+                  startNumber: 50000,
+                  endNumber: 99999,
+                  prefix: "",
+                  suffix: "",
+                  paddingLength: 0,
+                  qrNumberOnly: true,
+                })
+              }
             >
               50K Serial Numbers
             </Button>
           </div>
         </div>
 
-        {/* Generate Button */}
-        <Button
-          onClick={generateStickers}
-          disabled={!isValidRange() || isGenerating}
-          className="w-full flex items-center gap-2"
-          size="lg"
-        >
-          <Zap className="h-4 w-4" />
-          {isGenerating
-            ? `Generating ${getTotalCount().toLocaleString()} stickers...`
-            : `Generate ${getTotalCount().toLocaleString()} Numbered Stickers`}
-        </Button>
-
-        {isGenerating && (
-          <div className="w-full bg-muted rounded-full h-2">
-            <div className="bg-primary h-2 rounded-full animate-pulse w-3/4"></div>
-          </div>
-        )}
+        {/* Auto-Generate Status */}
+        <div className="bg-green-50 border border-green-200 p-3 rounded-md">
+          <p className="text-sm font-medium text-green-800">
+            ✨ Auto-Update Enabled
+          </p>
+          <p className="text-xs text-green-600 mt-1">
+            Stickers automatically generate as you change settings above
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

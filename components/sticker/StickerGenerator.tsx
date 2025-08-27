@@ -1,6 +1,8 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { StickerCanvas } from "./StickerCanvas";
 import { ContactForm } from "./ContactForm";
 import { DataImporter } from "./DataImporter";
@@ -25,17 +27,24 @@ import {
   useActiveDataInfo,
   useNumberedStickers,
   useBulkData,
+  useNumberRangeConfig,
+  useSetNumberRangeConfig,
 } from "@/stores/stickerStore";
 import { StickerData } from "@/lib/sticker-utils";
+import { useEffect } from "react";
+import { Zap, RefreshCw } from "lucide-react";
 
 export const StickerGenerator = () => {
-  // selectors
+  // Selectors
   const currentSticker = useCurrentSticker();
   const dimensions = useDimensions();
   const pdfConfig = usePdfConfig();
   const activeTab = useActiveTab();
+  const numberedStickers = useNumberedStickers();
+  const bulkData = useBulkData();
+  const numberRangeConfig = useNumberRangeConfig();
 
-  // actions
+  // Actions
   const setCurrentSticker = useSetCurrentSticker();
   const setDimensions = useSetDimensions();
   const setPdfConfig = useSetPdfConfig();
@@ -43,20 +52,73 @@ export const StickerGenerator = () => {
   const setNumberedStickers = useSetNumberedStickers();
   const setActiveTab = useSetActiveTab();
   const setUIState = useSetUIState();
+  const setNumberRangeConfig = useSetNumberRangeConfig();
 
-  // computed functions (stable)
-  const getActiveDataForExport = useActiveDataForExport();
-  const getActiveDataInfo = useActiveDataInfo();
+  // Computed data
+  const activeData = useActiveDataForExport();
+  const dataForExport = activeData();
+  const activeInfo = useActiveDataInfo();
+  const activeDataInfo = activeInfo();
 
-  const dataForExport = getActiveDataForExport();
-  const activeDataInfo = getActiveDataInfo();
+  // Auto-generate numbered stickers when config changes
+  useEffect(() => {
+    if (
+      activeTab === "numbers" &&
+      numberRangeConfig.startNumber &&
+      numberRangeConfig.endNumber
+    ) {
+      generateNumberedStickersAuto();
+    }
+  }, [numberRangeConfig, activeTab]);
+
+  const generateNumberedStickersAuto = () => {
+    const {
+      startNumber,
+      endNumber,
+      prefix,
+      suffix,
+      paddingLength,
+      qrNumberOnly,
+    } = numberRangeConfig;
+
+    if (startNumber > endNumber) return;
+
+    const stickers: StickerData[] = [];
+
+    for (let i = startNumber; i <= endNumber; i++) {
+      let formatted = i.toString();
+      if (paddingLength > 0) {
+        formatted = formatted.padStart(paddingLength, "0");
+      }
+      const formattedNumber = `${prefix}${formatted}${suffix}`;
+
+      const qrCodeValue = qrNumberOnly
+        ? i.toString()
+        : `${
+            currentSticker.qrData ||
+            currentSticker.website ||
+            currentSticker.phone
+          }?id=${formattedNumber}`;
+
+      const sticker: StickerData = {
+        ...currentSticker,
+        id: `sticker-${i}`,
+        number: i,
+        formattedNumber,
+        name: numberRangeConfig.includeInName
+          ? `${currentSticker.name} #${formattedNumber}`
+          : currentSticker.name,
+        qrData: qrCodeValue,
+      };
+
+      stickers.push(sticker);
+    }
+
+    setNumberedStickers(stickers);
+  };
 
   const handleDataImport = (data: StickerData[]) => {
     setBulkData(data);
-  };
-
-  const handleNumberedGeneration = (stickers: StickerData[]) => {
-    setNumberedStickers(stickers);
   };
 
   const handlePDFPreview = () => {
@@ -67,23 +129,50 @@ export const StickerGenerator = () => {
     setActiveTab(tab);
   };
 
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">
-          Professional Sticker Generator
-        </h1>
-        <p className="text-muted-foreground">
-          Create custom stickers with full dimension control, numbering, and
-          advanced PDF export
-        </p>
+  const handleManualGenerate = () => {
+    if (activeTab === "numbers") {
+      generateNumberedStickersAuto();
+    }
+  };
 
-        <div className="mt-4 inline-flex items-center gap-2 bg-muted px-4 py-2 rounded-full">
-          <span className="text-lg">{activeDataInfo.icon}</span>
-          <span className={`font-medium ${activeDataInfo.color}`}>
-            {activeDataInfo.type}: {activeDataInfo.count.toLocaleString()}{" "}
-            sticker{activeDataInfo.count !== 1 ? "s" : ""}
-          </span>
+  return (
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
+      {/* Header with Generate Button */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+        <div className="text-center md:text-left">
+          <h1 className="text-2xl md:text-3xl font-bold mb-2">
+            Professional Sticker Generator
+          </h1>
+          <p className="text-muted-foreground text-sm md:text-base">
+            Create custom stickers with full dimension control, numbering, and
+            advanced PDF export
+          </p>
+        </div>
+
+        {/* Generate Button & Status */}
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          {/* Active Data Status */}
+          <div className="inline-flex items-center gap-2 bg-muted px-3 md:px-4 py-2 rounded-full">
+            <span className="text-base md:text-lg">{activeDataInfo.icon}</span>
+            <span
+              className={`font-medium text-xs md:text-sm ${activeDataInfo.color}`}
+            >
+              {activeDataInfo.type}: {activeDataInfo.count.toLocaleString()}{" "}
+              sticker{activeDataInfo.count !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {/* Generate Button */}
+          {activeTab === "numbers" && (
+            <Button
+              onClick={handleManualGenerate}
+              className="flex items-center gap-2"
+              size="sm"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Generate Now
+            </Button>
+          )}
         </div>
       </div>
 
@@ -92,14 +181,29 @@ export const StickerGenerator = () => {
         onValueChange={handleTabChange}
         className="space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="design">Design</TabsTrigger>
-          <TabsTrigger value="dimensions">Dimensions</TabsTrigger>
-          <TabsTrigger value="numbers">Numbers</TabsTrigger>
-          <TabsTrigger value="bulk">Bulk CSV</TabsTrigger>
-          <TabsTrigger value="pdf">PDF Config</TabsTrigger>
-          <TabsTrigger value="export">Export</TabsTrigger>
-        </TabsList>
+        {/* Responsive TabsList */}
+        <div className="overflow-x-auto">
+          <TabsList className="grid grid-cols-6 w-full min-w-[600px] md:min-w-0">
+            <TabsTrigger value="design" className="text-xs md:text-sm">
+              Design
+            </TabsTrigger>
+            <TabsTrigger value="dimensions" className="text-xs md:text-sm">
+              Dimensions
+            </TabsTrigger>
+            <TabsTrigger value="numbers" className="text-xs md:text-sm">
+              Numbers
+            </TabsTrigger>
+            <TabsTrigger value="bulk" className="text-xs md:text-sm">
+              Bulk CSV
+            </TabsTrigger>
+            <TabsTrigger value="pdf" className="text-xs md:text-sm">
+              PDF Config
+            </TabsTrigger>
+            <TabsTrigger value="export" className="text-xs md:text-sm">
+              Export
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="design" className="space-y-6">
           <div className="grid lg:grid-cols-2 gap-6">
@@ -161,9 +265,7 @@ export const StickerGenerator = () => {
         </TabsContent>
 
         <TabsContent value="numbers" className="space-y-6">
-          <NumberRangeGeneratorWithStore
-            onGenerate={handleNumberedGeneration}
-          />
+          <NumberRangeGeneratorWithStore />
         </TabsContent>
 
         <TabsContent value="bulk" className="space-y-6">
@@ -178,7 +280,6 @@ export const StickerGenerator = () => {
               stickerDimensions={dimensions}
               onPreview={handlePDFPreview}
             />
-
             <PDFPreview
               config={pdfConfig}
               stickerDimensions={dimensions}
@@ -195,19 +296,22 @@ export const StickerGenerator = () => {
   );
 };
 
-// Fixed components
-const NumberRangeGeneratorWithStore = ({
-  onGenerate,
-}: {
-  onGenerate: (stickers: StickerData[]) => void;
-}) => {
+// Updated components with auto-update
+const NumberRangeGeneratorWithStore = () => {
   const currentSticker = useCurrentSticker();
   const numberedStickers = useNumberedStickers();
   const dimensions = useDimensions();
+  const numberRangeConfig = useNumberRangeConfig();
+  const setNumberRangeConfig = useSetNumberRangeConfig();
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
-      <NumberRangeGenerator onGenerate={onGenerate} baseData={currentSticker} />
+      <NumberRangeGenerator
+        onGenerate={() => {}} // Empty because auto-update handles it
+        baseData={currentSticker}
+        config={numberRangeConfig}
+        onConfigChange={setNumberRangeConfig}
+      />
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Generated Preview</h3>
         {numberedStickers.length > 0 ? (
@@ -248,10 +352,8 @@ const NumberRangeGeneratorWithStore = ({
         ) : (
           <div className="text-center text-muted-foreground py-8">
             <div className="text-6xl mb-4">#️⃣</div>
-            <p>Configure and generate numbered stickers above</p>
-            <p className="text-sm mt-2">
-              Perfect for serial numbers, ID cards, or batch production
-            </p>
+            <p>Configure number range above</p>
+            <p className="text-sm mt-2">Stickers auto-generate as you type</p>
           </div>
         )}
       </div>
@@ -309,8 +411,8 @@ const DataImporterWithStore = ({
 const ExportManagerWithStore = () => {
   const dimensions = useDimensions();
   const pdfConfig = usePdfConfig();
-  const getActiveDataForExport = useActiveDataForExport();
-  const dataForExport = getActiveDataForExport();
+  const activeData = useActiveDataForExport();
+  const dataForExport = activeData();
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
