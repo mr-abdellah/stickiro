@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StickerCanvas } from "./StickerCanvas";
 import { ContactForm } from "./ContactForm";
@@ -8,84 +7,57 @@ import { DataImporter } from "./DataImporter";
 import { ExportManager } from "./ExportManager";
 import { DimensionsControl } from "./DimensionsControl";
 import { NumberRangeGenerator } from "./NumberRangeGenerator";
-import {
-  PDFConfig,
-  DEFAULT_PDF_CONFIG,
-  PDFConfiguration,
-} from "./PDFConfigControl";
+import { PDFConfig } from "./PDFConfigControl";
 import { PDFPreview } from "./PDFPreview";
 import {
-  StickerData,
-  StickerDimensions,
-  DEFAULT_DIMENSIONS,
-} from "@/lib/sticker-utils";
+  useStickerStore,
+  useStickerActions,
+  useCurrentSticker,
+  useDimensions,
+  usePdfConfig,
+  useActiveTab,
+} from "@/stores/stickerStore";
+import { StickerData } from "@/lib/sticker-utils";
 
 export const StickerGenerator = () => {
-  const [currentSticker, setCurrentSticker] = useState<StickerData>({
-    id: "1",
-    name: "Maghreb Distrib",
-    phone: "05 59 42 44 56",
-    email: "commercialmaghrebdistrib@gmail.com",
-    website: "",
-    qrData: "",
-  });
+  // Use Zustand selectors for optimal performance
+  const currentSticker = useCurrentSticker();
+  const dimensions = useDimensions();
+  const pdfConfig = usePdfConfig();
+  const activeTab = useActiveTab();
 
-  const [dimensions, setDimensions] =
-    useState<StickerDimensions>(DEFAULT_DIMENSIONS);
-  const [pdfConfig, setPdfConfig] =
-    useState<PDFConfiguration>(DEFAULT_PDF_CONFIG);
-  const [bulkData, setBulkData] = useState<StickerData[]>([]);
-  const [numberedStickers, setNumberedStickers] = useState<StickerData[]>([]);
-  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  // Get all actions
+  const {
+    setCurrentSticker,
+    setDimensions,
+    setPdfConfig,
+    setBulkData,
+    setNumberedStickers,
+    setActiveTab,
+    setUIState,
+    getActiveDataForExport,
+    getActiveDataInfo,
+  } = useStickerActions();
+
+  // Get computed data
+  const dataForExport = getActiveDataForExport();
+  const activeDataInfo = getActiveDataInfo();
 
   const handleDataImport = (data: StickerData[]) => {
     setBulkData(data);
-    setNumberedStickers([]); // Clear numbered stickers when importing CSV
   };
 
   const handleNumberedGeneration = (stickers: StickerData[]) => {
     setNumberedStickers(stickers);
-    setBulkData([]); // Clear bulk import when using numbered generation
   };
 
   const handlePDFPreview = () => {
-    setShowPDFPreview(true);
+    setUIState({ showPDFPreview: true });
   };
 
-  // Priority: numbered stickers > bulk CSV > single sticker
-  const dataForExport =
-    numberedStickers.length > 0
-      ? numberedStickers
-      : bulkData.length > 0
-      ? bulkData
-      : [currentSticker];
-
-  const getActiveDataInfo = () => {
-    if (numberedStickers.length > 0) {
-      return {
-        type: "Numbered Stickers",
-        count: numberedStickers.length,
-        color: "text-green-600",
-        icon: "#",
-      };
-    }
-    if (bulkData.length > 0) {
-      return {
-        type: "CSV Import",
-        count: bulkData.length,
-        color: "text-blue-600",
-        icon: "📊",
-      };
-    }
-    return {
-      type: "Single Design",
-      count: 1,
-      color: "text-purple-600",
-      icon: "🎨",
-    };
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
   };
-
-  const activeData = getActiveDataInfo();
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -100,15 +72,19 @@ export const StickerGenerator = () => {
 
         {/* Active Data Status */}
         <div className="mt-4 inline-flex items-center gap-2 bg-muted px-4 py-2 rounded-full">
-          <span className="text-lg">{activeData.icon}</span>
-          <span className={`font-medium ${activeData.color}`}>
-            {activeData.type}: {activeData.count.toLocaleString()} sticker
-            {activeData.count !== 1 ? "s" : ""}
+          <span className="text-lg">{activeDataInfo.icon}</span>
+          <span className={`font-medium ${activeDataInfo.color}`}>
+            {activeDataInfo.type}: {activeDataInfo.count.toLocaleString()}{" "}
+            sticker{activeDataInfo.count !== 1 ? "s" : ""}
           </span>
         </div>
       </div>
 
-      <Tabs defaultValue="design" className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="design">Design</TabsTrigger>
           <TabsTrigger value="dimensions">Dimensions</TabsTrigger>
@@ -134,8 +110,8 @@ export const StickerGenerator = () => {
                 </p>
                 <p>
                   <strong>Print Size:</strong>{" "}
-                  {(dimensions.sticker.width / 2.54).toFixed(2)}" ×{" "}
-                  {(dimensions.sticker.height / 2.54).toFixed(2)}"
+                  {(dimensions.sticker.width / 2.54).toFixed(2)}&quot; ×{" "}
+                  {(dimensions.sticker.height / 2.54).toFixed(2)}&quot;
                 </p>
                 <p>
                   <strong>Resolution:</strong> 300 DPI
@@ -172,128 +148,19 @@ export const StickerGenerator = () => {
                     {dimensions.contact.height}cm
                   </div>
                 </div>
-                <div className="pt-2 border-t text-xs">
-                  <div>
-                    🔄 Spacing: Top {dimensions.spacing.top}cm • Middle{" "}
-                    {dimensions.spacing.middle}cm • Bottom{" "}
-                    {dimensions.spacing.bottom}cm
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="numbers" className="space-y-6">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <NumberRangeGenerator
-              onGenerate={handleNumberedGeneration}
-              baseData={currentSticker}
-            />
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Generated Preview</h3>
-              {numberedStickers.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-green-800">
-                      ✅ {numberedStickers.length.toLocaleString()} numbered
-                      stickers generated
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      Range: #{numberedStickers[0].formattedNumber} to #
-                      {
-                        numberedStickers[numberedStickers.length - 1]
-                          .formattedNumber
-                      }
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {numberedStickers.slice(0, 4).map((sticker, index) => (
-                      <div key={index} className="text-center">
-                        <StickerCanvas
-                          data={sticker}
-                          dimensions={dimensions}
-                          className="mx-auto mb-2"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          QR: {sticker.qrData}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {numberedStickers.length > 4 && (
-                    <p className="text-center text-sm text-muted-foreground">
-                      ... and {(numberedStickers.length - 4).toLocaleString()}{" "}
-                      more stickers
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <div className="text-6xl mb-4">#️⃣</div>
-                  <p>Configure and generate numbered stickers above</p>
-                  <p className="text-sm mt-2">
-                    Perfect for serial numbers, ID cards, or batch production
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+          <NumberRangeGeneratorWithStore
+            onGenerate={handleNumberedGeneration}
+          />
         </TabsContent>
 
         <TabsContent value="bulk" className="space-y-6">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <DataImporter onDataImport={handleDataImport} />
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Bulk Preview</h3>
-              {bulkData.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-blue-800">
-                      📊 {bulkData.length.toLocaleString()} stickers loaded from
-                      CSV
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Each sticker: {dimensions.sticker.width}×
-                      {dimensions.sticker.height}cm
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {bulkData.slice(0, 4).map((sticker, index) => (
-                      <div key={index} className="text-center">
-                        <StickerCanvas
-                          data={sticker}
-                          dimensions={dimensions}
-                          className="mx-auto mb-2"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          {sticker.name}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {bulkData.length > 4 && (
-                    <p className="text-center text-sm text-muted-foreground">
-                      ... and {(bulkData.length - 4).toLocaleString()} more from
-                      your CSV
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <div className="text-6xl mb-4">📊</div>
-                  <p>Import CSV data to see bulk preview</p>
-                  <p className="text-sm mt-2">
-                    Upload your contact list for mass production
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+          <DataImporterWithStore onDataImport={handleDataImport} />
         </TabsContent>
 
         <TabsContent value="pdf" className="space-y-6">
@@ -314,100 +181,152 @@ export const StickerGenerator = () => {
         </TabsContent>
 
         <TabsContent value="export" className="space-y-6">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <ExportManager
-              data={dataForExport}
-              dimensions={dimensions}
-              pdfConfig={pdfConfig}
-            />
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Export Preview</h3>
-              {dataForExport.length > 0 && (
-                <div className="space-y-4">
-                  <StickerCanvas
-                    data={dataForExport[0]}
-                    dimensions={dimensions}
-                  />
-
-                  <div className="text-sm text-muted-foreground bg-muted p-4 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">Export Summary</p>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${activeData.color} bg-background`}
-                      >
-                        {activeData.icon} {activeData.type}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <p>
-                          <strong>Quantity:</strong>{" "}
-                          {dataForExport.length.toLocaleString()}
-                        </p>
-                        <p>
-                          <strong>Sticker Size:</strong>{" "}
-                          {dimensions.sticker.width}×{dimensions.sticker.height}
-                          cm
-                        </p>
-                        <p>
-                          <strong>Resolution:</strong> 300 DPI
-                        </p>
-                      </div>
-                      <div>
-                        <p>
-                          <strong>PDF Page:</strong> {pdfConfig.customWidth}×
-                          {pdfConfig.customHeight}mm
-                        </p>
-                        <p>
-                          <strong>PDF DPI:</strong> {pdfConfig.dpi}
-                        </p>
-                        <p>
-                          <strong>Per Page:</strong>{" "}
-                          {Math.max(
-                            1,
-                            Math.floor(
-                              (pdfConfig.customWidth -
-                                pdfConfig.marginLeft -
-                                pdfConfig.marginRight +
-                                pdfConfig.paddingHorizontal) /
-                                (dimensions.sticker.width *
-                                  10 *
-                                  pdfConfig.stickerScale +
-                                  pdfConfig.paddingHorizontal)
-                            ) *
-                              Math.floor(
-                                (pdfConfig.customHeight -
-                                  pdfConfig.marginTop -
-                                  pdfConfig.marginBottom +
-                                  pdfConfig.paddingVertical) /
-                                  (dimensions.sticker.height *
-                                    10 *
-                                    pdfConfig.stickerScale +
-                                    pdfConfig.paddingVertical)
-                              )
-                          )}{" "}
-                          stickers
-                        </p>
-                      </div>
-                    </div>
-
-                    {numberedStickers.length > 0 && (
-                      <div className="pt-2 border-t">
-                        <p className="text-xs text-green-600">
-                          <strong>Number Range:</strong>{" "}
-                          {numberedStickers[0].qrData} to{" "}
-                          {numberedStickers[numberedStickers.length - 1].qrData}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <ExportManagerWithStore />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+};
+
+// Components that use Zustand internally
+interface NumberRangeGeneratorWithStoreProps {
+  onGenerate: (stickers: StickerData[]) => void;
+}
+
+const NumberRangeGeneratorWithStore = ({
+  onGenerate,
+}: NumberRangeGeneratorWithStoreProps) => {
+  const currentSticker = useCurrentSticker();
+  const { numberRangeConfig, numberedStickers } = useStickerStore((state) => ({
+    numberRangeConfig: state.numberRangeConfig,
+    numberedStickers: state.numberedStickers,
+  }));
+  const dimensions = useDimensions();
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <NumberRangeGenerator onGenerate={onGenerate} baseData={currentSticker} />
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Generated Preview</h3>
+        {numberedStickers.length > 0 ? (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+              <p className="text-sm font-medium text-green-800">
+                ✅ {numberedStickers.length.toLocaleString()} numbered stickers
+                generated
+              </p>
+              <p className="text-xs text-green-600 mt-1">
+                QR Range: {numberedStickers[0]?.qrData} to{" "}
+                {numberedStickers[numberedStickers.length - 1]?.qrData}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {numberedStickers.slice(0, 4).map((sticker, index) => (
+                <div key={index} className="text-center">
+                  <StickerCanvas
+                    data={sticker}
+                    dimensions={dimensions}
+                    className="mx-auto mb-2"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    QR: {sticker.qrData}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {numberedStickers.length > 4 && (
+              <p className="text-center text-sm text-muted-foreground">
+                ... and {(numberedStickers.length - 4).toLocaleString()} more
+                stickers
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="text-center text-muted-foreground py-8">
+            <div className="text-6xl mb-4">#️⃣</div>
+            <p>Configure and generate numbered stickers above</p>
+            <p className="text-sm mt-2">
+              Perfect for serial numbers, ID cards, or batch production
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface DataImporterWithStoreProps {
+  onDataImport: (data: StickerData[]) => void;
+}
+
+const DataImporterWithStore = ({
+  onDataImport,
+}: DataImporterWithStoreProps) => {
+  const { bulkData } = useStickerStore((state) => ({
+    bulkData: state.bulkData,
+  }));
+  const dimensions = useDimensions();
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <DataImporter onDataImport={onDataImport} />
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Bulk Preview</h3>
+        {bulkData.length > 0 ? (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+              <p className="text-sm font-medium text-blue-800">
+                📊 {bulkData.length.toLocaleString()} stickers loaded from CSV
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {bulkData.slice(0, 4).map((sticker, index) => (
+                <div key={index} className="text-center">
+                  <StickerCanvas
+                    data={sticker}
+                    dimensions={dimensions}
+                    className="mx-auto mb-2"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {sticker.name}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-muted-foreground py-8">
+            <div className="text-6xl mb-4">📊</div>
+            <p>Import CSV data to see bulk preview</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ExportManagerWithStore = () => {
+  const dimensions = useDimensions();
+  const pdfConfig = usePdfConfig();
+  const { getActiveDataForExport } = useStickerActions();
+  const dataForExport = getActiveDataForExport();
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      <ExportManager
+        data={dataForExport}
+        dimensions={dimensions}
+        pdfConfig={pdfConfig}
+      />
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Export Preview</h3>
+        {dataForExport.length > 0 && (
+          <StickerCanvas data={dataForExport[0]} dimensions={dimensions} />
+        )}
+      </div>
     </div>
   );
 };

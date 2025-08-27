@@ -167,8 +167,10 @@ export const PDFConfig = ({
                     <SelectItem value="A4">A4 (210×297mm)</SelectItem>
                     <SelectItem value="A3">A3 (297×420mm)</SelectItem>
                     <SelectItem value="A5">A5 (148×210mm)</SelectItem>
-                    <SelectItem value="Letter">Letter (8.5×11")</SelectItem>
-                    <SelectItem value="Legal">Legal (8.5×14")</SelectItem>
+                    <SelectItem value="Letter">
+                      Letter (8.5×11&quot;)
+                    </SelectItem>
+                    <SelectItem value="Legal">Legal (8.5×14&quot;)</SelectItem>
                     <SelectItem value="Custom">Custom Size</SelectItem>
                   </SelectContent>
                 </Select>
