@@ -240,7 +240,7 @@ export const NumberRangeGenerator = ({
               <div>
                 <Label className="text-sm">Use Number Only in QR</Label>
                 <p className="text-xs text-muted-foreground">
-                  QR code contains just the number (e.g., "10137")
+                  QR code contains just the number (e.g., &quot;10137&quot;)
                 </p>
               </div>
               <Switch

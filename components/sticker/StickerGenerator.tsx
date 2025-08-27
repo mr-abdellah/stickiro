@@ -120,8 +120,8 @@ export const StickerGenerator = () => {
                 </p>
                 <p>
                   <strong>Print Size:</strong>{" "}
-                  {(dimensions.sticker.width / 2.54).toFixed(2)}" ×{" "}
-                  {(dimensions.sticker.height / 2.54).toFixed(2)}"
+                  {(dimensions.sticker.width / 2.54).toFixed(2)}&quot; ×{" "}
+                  {(dimensions.sticker.height / 2.54).toFixed(2)}&quot;
                 </p>
                 <p>
                   <strong>Resolution:</strong> 300 DPI
@@ -321,8 +321,8 @@ export const StickerGenerator = () => {
                       <div>
                         <p>
                           <strong>Print Size:</strong>{" "}
-                          {(dimensions.sticker.width / 2.54).toFixed(2)}"×
-                          {(dimensions.sticker.height / 2.54).toFixed(2)}"
+                          {(dimensions.sticker.width / 2.54).toFixed(2)}&quot;×
+                          {(dimensions.sticker.height / 2.54).toFixed(2)}&quot;
                         </p>
                         <p>
                           <strong>PNG:</strong> Individual files

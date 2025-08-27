@@ -473,8 +473,8 @@ export const ExportManager = ({ data, dimensions }: ExportManagerProps) => {
               </li>
               <li>
                 📄 <strong>Print size:</strong>{" "}
-                {(dimensions.sticker.width / 2.54).toFixed(2)}"×
-                {(dimensions.sticker.height / 2.54).toFixed(2)}"
+                {(dimensions.sticker.width / 2.54).toFixed(2)}&quot;×
+                {(dimensions.sticker.height / 2.54).toFixed(2)}&quot;
               </li>
               <li>
                 📚 <strong>Batches:</strong> {totalBatches} batches of{" "}

@@ -24,23 +24,30 @@ export const DataImporter = ({ onDataImport }: DataImporterProps) => {
     setIsLoading(true);
     setError(null);
 
-    Papa.parse(file, {
+    Papa.parse<{
+      name?: string;
+      business_name?: string;
+      phone?: string;
+      telephone?: string;
+      email?: string;
+      website?: string;
+      url?: string;
+      qr_data?: string;
+    }>(file, {
       header: true,
       complete: (results) => {
         try {
-          const stickerData: StickerData[] = results.data.map(
-            (row: any, index: number) => ({
-              id: `${index + 1}`,
-              name: row.name || row.business_name || "",
-              phone: row.phone || row.telephone || "",
-              email: row.email || "",
-              website: row.website || row.url || "",
-              qrData: row.qr_data || row.website || row.url || row.phone || "",
-              logo: "", // Will be handled separately
-            })
-          );
+          const stickerData: StickerData[] = results.data.map((row, index) => ({
+            id: `${index + 1}`,
+            name: row.name || row.business_name || "",
+            phone: row.phone || row.telephone || "",
+            email: row.email || "",
+            website: row.website || row.url || "",
+            qrData: row.qr_data || row.website || row.url || row.phone || "",
+            logo: "",
+          }));
 
-          setPreviewData(stickerData.slice(0, 5)); // Show first 5 for preview
+          setPreviewData(stickerData.slice(0, 5));
           setIsLoading(false);
         } catch (err) {
           setError("Error parsing CSV file. Please check the format.");

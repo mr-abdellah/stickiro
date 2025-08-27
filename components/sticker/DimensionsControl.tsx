@@ -384,8 +384,8 @@ export const DimensionsControl = ({
             </strong>
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Print size: {(dimensions.sticker.width / 2.54).toFixed(2)}" ×{" "}
-            {(dimensions.sticker.height / 2.54).toFixed(2)}"
+            Print size: {(dimensions.sticker.width / 2.54).toFixed(2)}&quot; ×{" "}
+            {(dimensions.sticker.height / 2.54).toFixed(2)}&quot;
           </p>
         </div>
       </CardContent>
