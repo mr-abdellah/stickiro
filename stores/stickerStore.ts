@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { subscribeWithSelector } from "zustand/middleware";
 import {
   StickerData,
   StickerDimensions,
@@ -128,35 +129,27 @@ export const useStickerStore = create<StickerStore>()(
 
       // Actions
       setCurrentSticker: (sticker) => set({ currentSticker: sticker }),
-
       setDimensions: (dimensions) => set({ dimensions }),
-
       setPdfConfig: (config) => set({ pdfConfig: config }),
-
       setBulkData: (data) =>
         set({
           bulkData: data,
-          numberedStickers: [], // Clear numbered when setting bulk
+          numberedStickers: [],
         }),
-
       setNumberedStickers: (stickers) =>
         set({
           numberedStickers: stickers,
-          bulkData: [], // Clear bulk when setting numbered
+          bulkData: [],
         }),
-
       setNumberRangeConfig: (config) =>
         set((state) => ({
           numberRangeConfig: { ...state.numberRangeConfig, ...config },
         })),
-
       setExportConfig: (config) =>
         set((state) => ({
           exportConfig: { ...state.exportConfig, ...config },
         })),
-
       setActiveTab: (tab) => set({ activeTab: tab }),
-
       setUIState: (state) =>
         set((currentState) => ({
           uiState: { ...currentState.uiState, ...state },
@@ -217,29 +210,24 @@ export const useStickerStore = create<StickerStore>()(
         }),
     }),
     {
-      name: "sticker-generator-storage", // localStorage key
+      name: "sticker-generator-storage",
       storage: createJSONStorage(() => localStorage),
-
-      // Only persist important data, not UI state
       partialize: (state) => ({
         currentSticker: state.currentSticker,
         dimensions: state.dimensions,
         pdfConfig: state.pdfConfig,
         numberRangeConfig: state.numberRangeConfig,
         exportConfig: {
-          batchSize: state.exportConfig.batchSize, // Only persist batch size
+          batchSize: state.exportConfig.batchSize,
         },
         activeTab: state.activeTab,
-        // Don't persist: bulkData, numberedStickers (too large), uiState, exportProgress
       }),
-
-      // Version for migration if needed
       version: 1,
     }
   )
 );
 
-// Selectors for performance optimization
+// Individual selectors (prevents re-renders) - SAFE FOR SSR
 export const useCurrentSticker = () =>
   useStickerStore((state) => state.currentSticker);
 export const useDimensions = () => useStickerStore((state) => state.dimensions);
@@ -254,21 +242,36 @@ export const useExportConfig = () =>
 export const useActiveTab = () => useStickerStore((state) => state.activeTab);
 export const useUIState = () => useStickerStore((state) => state.uiState);
 
-// Action selectors
-export const useStickerActions = () =>
-  useStickerStore((state) => ({
-    setCurrentSticker: state.setCurrentSticker,
-    setDimensions: state.setDimensions,
-    setPdfConfig: state.setPdfConfig,
-    setBulkData: state.setBulkData,
-    setNumberedStickers: state.setNumberedStickers,
-    setNumberRangeConfig: state.setNumberRangeConfig,
-    setExportConfig: state.setExportConfig,
-    setActiveTab: state.setActiveTab,
-    setUIState: state.setUIState,
-    getActiveDataForExport: state.getActiveDataForExport,
-    getActiveDataInfo: state.getActiveDataInfo,
-    resetBulkData: state.resetBulkData,
-    resetNumberedStickers: state.resetNumberedStickers,
-    resetAllData: state.resetAllData,
-  }));
+// Individual action selectors - SAFE FOR SSR
+export const useSetCurrentSticker = () =>
+  useStickerStore((state) => state.setCurrentSticker);
+export const useSetDimensions = () =>
+  useStickerStore((state) => state.setDimensions);
+export const useSetPdfConfig = () =>
+  useStickerStore((state) => state.setPdfConfig);
+export const useSetBulkData = () =>
+  useStickerStore((state) => state.setBulkData);
+export const useSetNumberedStickers = () =>
+  useStickerStore((state) => state.setNumberedStickers);
+export const useSetNumberRangeConfig = () =>
+  useStickerStore((state) => state.setNumberRangeConfig);
+export const useSetExportConfig = () =>
+  useStickerStore((state) => state.setExportConfig);
+export const useSetActiveTab = () =>
+  useStickerStore((state) => state.setActiveTab);
+export const useSetUIState = () => useStickerStore((state) => state.setUIState);
+
+// Computed selectors - STABLE FUNCTIONS
+export const useActiveDataForExport = () =>
+  useStickerStore((state) => state.getActiveDataForExport);
+
+export const useActiveDataInfo = () =>
+  useStickerStore((state) => state.getActiveDataInfo);
+
+// Reset actions - STABLE FUNCTIONS
+export const useResetBulkData = () =>
+  useStickerStore((state) => state.resetBulkData);
+export const useResetNumberedStickers = () =>
+  useStickerStore((state) => state.resetNumberedStickers);
+export const useResetAllData = () =>
+  useStickerStore((state) => state.resetAllData);

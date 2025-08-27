@@ -10,36 +10,44 @@ import { NumberRangeGenerator } from "./NumberRangeGenerator";
 import { PDFConfig } from "./PDFConfigControl";
 import { PDFPreview } from "./PDFPreview";
 import {
-  useStickerStore,
-  useStickerActions,
   useCurrentSticker,
   useDimensions,
   usePdfConfig,
   useActiveTab,
+  useSetCurrentSticker,
+  useSetDimensions,
+  useSetPdfConfig,
+  useSetBulkData,
+  useSetNumberedStickers,
+  useSetActiveTab,
+  useSetUIState,
+  useActiveDataForExport,
+  useActiveDataInfo,
+  useNumberedStickers,
+  useBulkData,
 } from "@/stores/stickerStore";
 import { StickerData } from "@/lib/sticker-utils";
 
 export const StickerGenerator = () => {
-  // Use Zustand selectors for optimal performance
+  // selectors
   const currentSticker = useCurrentSticker();
   const dimensions = useDimensions();
   const pdfConfig = usePdfConfig();
   const activeTab = useActiveTab();
 
-  // Get all actions
-  const {
-    setCurrentSticker,
-    setDimensions,
-    setPdfConfig,
-    setBulkData,
-    setNumberedStickers,
-    setActiveTab,
-    setUIState,
-    getActiveDataForExport,
-    getActiveDataInfo,
-  } = useStickerActions();
+  // actions
+  const setCurrentSticker = useSetCurrentSticker();
+  const setDimensions = useSetDimensions();
+  const setPdfConfig = useSetPdfConfig();
+  const setBulkData = useSetBulkData();
+  const setNumberedStickers = useSetNumberedStickers();
+  const setActiveTab = useSetActiveTab();
+  const setUIState = useSetUIState();
 
-  // Get computed data
+  // computed functions (stable)
+  const getActiveDataForExport = useActiveDataForExport();
+  const getActiveDataInfo = useActiveDataInfo();
+
   const dataForExport = getActiveDataForExport();
   const activeDataInfo = getActiveDataInfo();
 
@@ -70,7 +78,6 @@ export const StickerGenerator = () => {
           advanced PDF export
         </p>
 
-        {/* Active Data Status */}
         <div className="mt-4 inline-flex items-center gap-2 bg-muted px-4 py-2 rounded-full">
           <span className="text-lg">{activeDataInfo.icon}</span>
           <span className={`font-medium ${activeDataInfo.color}`}>
@@ -188,19 +195,14 @@ export const StickerGenerator = () => {
   );
 };
 
-// Components that use Zustand internally
-interface NumberRangeGeneratorWithStoreProps {
-  onGenerate: (stickers: StickerData[]) => void;
-}
-
+// Fixed components
 const NumberRangeGeneratorWithStore = ({
   onGenerate,
-}: NumberRangeGeneratorWithStoreProps) => {
+}: {
+  onGenerate: (stickers: StickerData[]) => void;
+}) => {
   const currentSticker = useCurrentSticker();
-  const { numberRangeConfig, numberedStickers } = useStickerStore((state) => ({
-    numberRangeConfig: state.numberRangeConfig,
-    numberedStickers: state.numberedStickers,
-  }));
+  const numberedStickers = useNumberedStickers();
   const dimensions = useDimensions();
 
   return (
@@ -257,16 +259,12 @@ const NumberRangeGeneratorWithStore = ({
   );
 };
 
-interface DataImporterWithStoreProps {
-  onDataImport: (data: StickerData[]) => void;
-}
-
 const DataImporterWithStore = ({
   onDataImport,
-}: DataImporterWithStoreProps) => {
-  const { bulkData } = useStickerStore((state) => ({
-    bulkData: state.bulkData,
-  }));
+}: {
+  onDataImport: (data: StickerData[]) => void;
+}) => {
+  const bulkData = useBulkData();
   const dimensions = useDimensions();
 
   return (
@@ -311,7 +309,7 @@ const DataImporterWithStore = ({
 const ExportManagerWithStore = () => {
   const dimensions = useDimensions();
   const pdfConfig = usePdfConfig();
-  const { getActiveDataForExport } = useStickerActions();
+  const getActiveDataForExport = useActiveDataForExport();
   const dataForExport = getActiveDataForExport();
 
   return (
